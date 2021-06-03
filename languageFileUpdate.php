@@ -1,13 +1,11 @@
 <?php
+CONST Version = '0.95';
 
 use Sugarcrm\Sugarcrm\AccessControl\AdminWork;
 
 if (!defined('sugarEntry')) {
     define('sugarEntry', true);
 }
-
-$languageToKeep = 'en_us';
-$deleteEmptyFiles = true;
 
 //change directories to where this file is located.
 chdir(dirname(__FILE__));
@@ -27,25 +25,29 @@ $current_user->getSystemUser();
 $adminWork = new AdminWork();
 $adminWork->startAdminWork();
 
-$lfr = new languageFileRepair('custom', $languageToKeep, $deleteEmptyFiles);
+$lfr = new languageFileRepair('custom');
+$lfr->mainLanguage = 'en_us';
+$lfr->deleteOtherLanguages = true;
+$lfr->deleteEmptyFiles = true;
+$lfr->verbose=false;
 $lfr->run();
 
 class languageFileRepair
 {
     private $rootDirectory;
     private $directories;
-    private $languageToKeep;
-    private $deleteEmptyFiles;
+    public $mainLanguage;
+    public $deleteEmptyFiles;
+    public $deleteOtherLanguages;
+    public $verbose;
     private $languageDictionary = array();
     private $languageDictionarySrc = array();
     private $module;
     private $newLanguageArray = array();
 
-    public function __construct($rootDirectory, $languageToKeep, $deleteEmptyFiles)
+    public function __construct($rootDirectory)
     {
         $this->rootDirectory = $rootDirectory;
-        $this->languageToKeep = $languageToKeep;
-        $this->deleteEmptyFiles = $deleteEmptyFiles;
     }
 
     public function run()
@@ -66,7 +68,7 @@ class languageFileRepair
                     //First, delete everything in the application/Ext directory
                     if (stristr($pathName, '/application/Ext') !== false &&
                         stristr($pathName, '/Extension/') === false) {
-                        if (!$this->is_dir_empty($pathName)) {
+                        if (!$this->is_dir_empty($pathName) && $this->deleteOtherLanguages) {
                             $this->recursiveDelete($pathName);
                         }
                         continue;
@@ -75,7 +77,7 @@ class languageFileRepair
                     // then just empty it
                     if (stristr($pathName, '/Ext/') !== false &&
                         stristr($pathName, '/Extension/') === false) {
-                        if (!$this->is_dir_empty($pathName)) {
+                        if (!$this->is_dir_empty($pathName) && $this->deleteOtherLanguages) {
                             $this->recursiveDelete($pathName);
                         }
                         continue;
@@ -102,9 +104,9 @@ class languageFileRepair
             foreach ($languageFiles as $fileName) {
                 if($fileName === '.' || $fileName === '..') continue;
                 //Remove all languages except english
-                if (substr($fileName, 0, 5) !== $this->languageToKeep) {
+                if (substr($fileName, 0, 5) !== $this->mainLanguage) {
                     if (!unlink($languageDir . '/' . $fileName)) {
-                        echo "Error deleting file: {$languageDir}/{$fileName}" . PHP_EOL;
+                        if($this->verbose) echo "Error deleting file: {$languageDir}/{$fileName}" . PHP_EOL;
                         exit(255);
                     }
                 }
@@ -133,7 +135,7 @@ class languageFileRepair
                 //If the file contains no strings then its considered empty
                 if (count($mod_strings) === 0 && count($app_list_strings) === 0 && count($app_strings) === 0) {
                     if ($this->deleteEmptyFiles) {
-                        echo "Removing Empty file: {$languageDir}/{$fileName}" . PHP_EOL;
+                        if($this->verbose) echo "Removing Empty file: {$languageDir}/{$fileName}" . PHP_EOL;
                         unlink($languageDir . '/' . $fileName);
                     }
                 } else {
@@ -150,7 +152,7 @@ class languageFileRepair
                     if (count($this->newLanguageArray) === 0) {
                         //If all the strings in this file are already in another language file
                         // then just delete this file
-                        echo "Removing emptied file: {$languageDir}/{$fileName}" . PHP_EOL;
+                        if($this->verbose) echo "Removing emptied file: {$languageDir}/{$fileName}" . PHP_EOL;
                         unlink($languageDir . '/' . $fileName);
                     } else {
                         $this->newLanguageFile("{$languageDir}/{$fileName}", $this->newLanguageArray);
@@ -186,7 +188,7 @@ class languageFileRepair
         // to the top of the list
         $tempList = $languageFiles;
         foreach ($tempList as $dirListEntry) {
-            if(stristr($dirListEntry, "{$this->languageToKeep}.sugar_")) {
+            if(stristr($dirListEntry, "{$this->mainLanguage}.sugar_")) {
                 $index = array_search($dirListEntry, $languageFiles);
                 if (!empty($index)) {
                     unset($languageFiles[$index]);
@@ -196,10 +198,10 @@ class languageFileRepair
         }
 
         //Now move the main language file to the top of the list.
-        $index = array_search("{$this->languageToKeep}.lang.php", $languageFiles);
+        $index = array_search("{$this->mainLanguage}.lang.php", $languageFiles);
         if (!empty($index)) {
             unset($languageFiles[$index]);
-            array_unshift($languageFiles, "{$this->languageToKeep}.lang.php");
+            array_unshift($languageFiles, "{$this->mainLanguage}.lang.php");
         }
         return $languageFiles;
     }
@@ -227,6 +229,7 @@ class languageFileRepair
     {
         if (!unlink($fileName)) {
             echo "Error deleting file: {$fileName}" . PHP_EOL;
+            exit(255);
         } else {
             $fp = sugar_fopen($fileName, 'w');
             $theDate = date('m/d/Y');
@@ -258,7 +261,7 @@ class languageFileRepair
      */
     private function recursiveDelete(string $dir, $deleteParent = false)
     {
-        echo "Removing all language files in: {$dir}" . PHP_EOL;
+        if($this->verbose) echo "Removing all language files in: {$dir}" . PHP_EOL;
         $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
         $files = new RecursiveIteratorIterator($it,
             RecursiveIteratorIterator::CHILD_FIRST);
@@ -323,8 +326,8 @@ class languageFileRepair
                 $this->languageDictionarySrc[$this->module][$langName][$index] = $languageDir . '/' . $fileName;
             } else {
                 if ($languageDir . '/' . $fileName !== $this->languageDictionarySrc[$this->module][$langName][$index]) {
-                    echo "Removing \$mod_strings: '{$index}' from {$languageDir}/{$fileName}" . PHP_EOL;
-                    echo "--> " . $this->languageDictionarySrc[$this->module][$langName][$index] . PHP_EOL;
+                    if($this->verbose) echo "Removing \$mod_strings: '{$index}' from {$languageDir}/{$fileName}" . PHP_EOL;
+                    if($this->verbose) echo "--> " . $this->languageDictionarySrc[$this->module][$langName][$index] . PHP_EOL;
                     if(isset($s[$this->module][$index])) {
                         $preValue = $s[$this->module][$index]['removed'];
                         if(is_array($preValue)) {
