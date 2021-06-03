@@ -3,7 +3,7 @@
 **With the default settings this script DOES delete files so please back up your files before running this even in a
 test environment. There may still be bugs in this script but as long as you have a file backup you should be fine**
 
-Sugar seems to update strings ($mod_strings and $app_list_strings) by either creating new files
+Sugar seems to update strings ($mod_strings, $app_strings and $app_list_strings) by either creating new files
 (for $app_list_strings) or adding the string to the en_us.lang.php file, both methods leave multiple copies of the
 string out there. To compound this issue when you create relationships sugar will add all the language strings from
 previous relationships in that module to the language file created for the new relatinship. Meaning the same language
@@ -11,7 +11,11 @@ string can be in dozens of different files.
 
 This script goes through all your language files and processes them in a way that leaves you with a single copy of the
 language string out there. It removes it from all other files and if that leaves a file without any strings then it
-deletes the file (configurable). On my system that means that about 18,000 unneeded files are deleted.
+deletes the file (configurable). It seeks out the correct files to retain. The xx_xx.lang.php file, if there is one, for
+the $mod_strings/app_strings and the xx_xx.sugar_OPTION_NAME.php, again if there is one, for $app_list_strings. This way
+the latest studio edits should be maintained.
+
+On my system this script deletes about 18,000 unneeded files.
 
 To run you just copy the script to your root directory and run
 
