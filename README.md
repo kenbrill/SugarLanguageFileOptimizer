@@ -1,7 +1,17 @@
 # Sugar language file repair utility
 
-With the default settings this script DOES delete files so please back up your files before running this even in a test
-environment.
+**With the default settings this script DOES delete files so please back up your files before running this even in a
+test environment. There may still be bugs in this script but as long as you have a file backup you should be fine**
+
+Sugar seems to update strings ($mod_strings and $app_list_strings) by either creating new files
+(for $app_list_strings) or adding the string to the en_us.lang.php file, both methods leave multiple copies of the
+string out there. To compound this issue when you create relationships sugar will add all the language strings from
+previous relationships in that module to the language file created for the new relatinship. Meaning the same language
+string can be in dozens of different files.
+
+This script goes through all your language files and processes them in a way that leaves you with a single copy of the
+language string out there. It removes it from all other files and if that leaves a file without any strings then it
+deletes the file (configurable). On my system that means that about 18,000 unneeded files are deleted.
 
 To run you just copy the script to your root directory and run
 
@@ -25,13 +35,3 @@ When its done, the file lfa.log will give you a run down on everything it did. Y
 This tells you that the $app_list_strings['state_dom'] was left in en_us.sugar_state_dom.php but removed from the two
 files listed under 'Removed'. If you want to see what files the script deletes then just turn on the 'verbose' mode near
 the top of the script.
-
-Sugar seems to update strings ($mod_strings and $app_list_strings) by either creating new files
-(for $app_list_strings) or adding the string to the en_us.lang.php file, both methods leave multiple copies of the
-string out there. TO compound this issue when you create relationships sugar will add all the language strings from
-previous relationships in that module to the language file created for the new relatinship. Meaning the same language
-string can be in dozens of different files.
-
-This script goes through all your language files and processes them in a way that leaves you with a single copy of the
-language string out there. It removes it from all other files and if that leaves a file without any strings then it
-deletes the file (configurable).
