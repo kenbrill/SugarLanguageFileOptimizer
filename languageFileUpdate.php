@@ -344,7 +344,7 @@ class languageFileRepair
             } else {
                 if ($languageDir . '/' . $fileName !== $this->languageDictionarySrc[$this->module][$langName][$index]) {
                     if ($this->verbose) echo "Removing \$mod_strings: '{$index}' from {$languageDir}/{$fileName}" . PHP_EOL;
-                    if ($this->verbose) echo "--> " . $this->languageDictionarySrc[$this->module][$langName][$index] . PHP_EOL;
+                    if ($this->verbose) echo " Keeping this index in --> " . $this->languageDictionarySrc[$this->module][$langName][$index] . PHP_EOL;
                     if (isset($s[$this->module][$index])) {
                         $preValue = $s[$this->module][$index]['removed'];
                         if (is_array($preValue)) {
