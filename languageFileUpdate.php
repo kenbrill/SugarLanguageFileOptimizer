@@ -8,9 +8,9 @@
  * 1.00         Added ability to handle multiple languages
  * 1.01         Fixed bug where the reported 'Kept' string was NULL
  */
-const Version = '1.01';
+const Version = '1.02';
 const Created = 'June 3rd, 2021';
-const lastUpdated = 'June 12, 2021';
+const lastUpdated = 'June 17, 2021';
 
 use Sugarcrm\Sugarcrm\AccessControl\AdminWork;
 
@@ -47,14 +47,17 @@ $lfr->deleteOtherLanguages = true;
 //For this example I want all empty language files deleted
 $lfr->deleteEmptyFiles = true;
 
+//Turn this on to update the new OrderMapping.php files that v11 creates
+$lfr->updateOrderMapping = true;
+
 $lfr->verbose = false;
 
 //If this is run from the web then use <br> to end lines
 $sapi_type = php_sapi_name();
 if (substr($sapi_type, 0, 3) === 'cli') {
-    $lfr->EOL=PHP_EOL;
+    $lfr->EOL = PHP_EOL;
 } else {
-    $lfr->EOL='<br>';
+    $lfr->EOL = '<br>';
 }
 
 //Run the script
@@ -67,7 +70,7 @@ class languageFileRepair
 
     public $EOL = '<br>';
     public $web = true;
-    //a list of all languages that you want retained in the file system.  
+    //a list of all languages that you want retained in the file system.
     public $mainLanguage = array('en_us');
     public $mainLanguageLower = array('en_us');
 
@@ -84,6 +87,9 @@ class languageFileRepair
     // and reduces the files indexed in phpStorm.
     public $deleteOtherLanguages = true;
 
+    //Turn this on to update the new OrderMapping.php files that v11 creates
+    public $updateOrderMapping = false;
+
     //Verbose output, on or off
     public $verbose = false;
     private $languageDictionary = array();
@@ -98,8 +104,8 @@ class languageFileRepair
 
     public function run()
     {
-        if($this->EOL===PHP_EOL) {
-            $this->web=false;
+        if ($this->EOL === PHP_EOL) {
+            $this->web = false;
         }
         $this->mainLanguageLower = array_map('strtolower', $this->mainLanguage);
         $rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->rootDirectory));
@@ -113,9 +119,10 @@ class languageFileRepair
                     $pathName = str_replace(array('/..', '/.'), '', $pathName);
 
                     //We are going to skip a few things here.  Any language file that
-                    //is 'compiled' from others is skipped as it will be rebuilt during
-                    //the next QRR.  We are going to delete them as the QRR seems to leave some behind
-                    //First, delete everything in the application/Ext directory
+                    // is 'compiled' from others is skipped as it will be rebuilt during
+                    // the next QRR.  We are going to delete them as the QRR seems to leave
+                    // some of these files behind
+                    // First, delete everything in the application/Ext directory
                     if (stristr($pathName, '/application/Ext') !== false &&
                         stristr($pathName, '/Extension/') === false) {
                         if (!$this->is_dir_empty($pathName) && $this->deleteOtherLanguages) {
@@ -154,8 +161,8 @@ class languageFileRepair
                 $languageFiles = scandir($languageDir);
                 foreach ($languageFiles as $fileName) {
                     if ($fileName === '.' || $fileName === '..') continue;
-                    //Remove all languages except english
-                    if (!in_array(strtolower(substr($fileName, 0, 5)),$this->mainLanguageLower)) {
+                    //Remove all languages except the ones in $this->mainLanguage
+                    if (!in_array(strtolower(substr($fileName, 0, 5)), $this->mainLanguageLower)) {
                         if (!unlink($languageDir . '/' . $fileName)) {
                             if ($this->verbose) echo "Error deleting file: {$languageDir}/{$fileName}" . $this->EOL;
                             exit(255);
@@ -212,14 +219,14 @@ class languageFileRepair
                 }
             }
         }
-        if($this->web) echo '<pre>';
+        if ($this->web) echo '<pre>';
         echo 'app_list_strings:' . $this->EOL;
         echo print_r($als, true);
         echo 'mod_strings:' . $this->EOL;
         echo print_r($ms, true);
         echo 'app_strings:' . $this->EOL;
         echo print_r($as, true);
-        if($this->web) echo '<\pre>';
+        if ($this->web) echo '<\pre>';
         echo "Done";
     }
 
@@ -240,9 +247,18 @@ class languageFileRepair
         // to the top of the list
         $tempList = $languageFiles;
         foreach ($tempList as $dirListEntry) {
-            foreach($this->mainLanguage as $languageName) {
-                $languageNameLower = strtolower($languageName.'.sugar_');
+            foreach ($this->mainLanguage as $languageName) {
+                //First we remove all the orderMapping files (if they exist)
+                // as we are going to update them later.
+                foreach ($languageFiles as $languageFile) {
+                    $index = array_search($languageFile . 'orderMapping.php', $languageFiles);
+                    if (!empty($index)) {
+                        unset($languageFiles[$index]);
+                    }
+                }
+                //Second we are going to move the Studio files to the top of the list
                 //We need to check in a case insensitive way
+                $languageNameLower = strtolower($languageName . '.sugar_');
                 if (stristr(strtolower($dirListEntry), $languageNameLower)) {
                     $index = array_search($dirListEntry, $languageFiles);
                     if (!empty($index)) {
@@ -258,9 +274,10 @@ class languageFileRepair
             }
         }
 
-        //Now move the main language file to the top of the list.
-        foreach($this->mainLanguage as $languageName) {
-            $languageNameLower = strtolower($languageName.'.lang.php');
+        //Now move the main language file to the top of the list.  Since we know the name
+        // of this file we dont have to rescan the list for it.
+        foreach ($this->mainLanguage as $languageName) {
+            $languageNameLower = strtolower($languageName . '.lang.php');
             $index = array_search($languageNameLower, array_map('strtolower', $languageFiles));
             if (!empty($index)) {
                 //If its found to be a studio related file (begins with LANG.lang.php)
@@ -279,7 +296,8 @@ class languageFileRepair
      * @param string $path
      * @return string
      */
-    private function findModule(string $path): string
+    private
+    function findModule(string $path): string
     {
         $parts = explode('/', $path);
         foreach ($parts as $index => $part) {
@@ -304,11 +322,11 @@ class languageFileRepair
             $theDate = date('m/d/Y');
             fwrite($fp, '<?php' . PHP_EOL);
             fwrite($fp, "//Updated by " . __FILE__ . " on {$theDate}" . PHP_EOL);
-            if(array_key_exists('app_list_strings',$list)) {
+            if (array_key_exists('app_list_strings', $list)) {
                 foreach ($list['app_list_strings'] as $index => $value) {
                     if ($this->keepThisIndex($index)) {
                         foreach ($value as $vIndex => $vValue) {
-                            $vValue = addslashes($vValue);
+                            $vValue = $this->replace_carriage_return(addslashes($vValue));
                             fwrite($fp, "\$app_list_strings['{$index}']['{$vIndex}'] = \"{$vValue}\";" . PHP_EOL);
                         }
                     } else {
@@ -316,13 +334,15 @@ class languageFileRepair
                     }
                 }
             }
-            if(array_key_exists('app_strings',$list)) {
+            if (array_key_exists('app_strings', $list)) {
                 foreach ($list['app_strings'] as $index => $value) {
+                    $value = $this->replace_carriage_return(addslashes($value));
                     fwrite($fp, "\$app_strings['{$index}'] = \"{$value}\";" . PHP_EOL);
                 }
             }
-            if(array_key_exists('mod_strings',$list)) {
+            if (array_key_exists('mod_strings', $list)) {
                 foreach ($list['mod_strings'] as $index => $value) {
+                    $value = $this->replace_carriage_return(addslashes($value));
                     fwrite($fp, "\$mod_strings['{$index}'] = \"{$value}\";" . PHP_EOL);
                 }
             }
@@ -334,7 +354,8 @@ class languageFileRepair
      * @param string $dir
      * @param false $deleteParent
      */
-    private function recursiveDelete(string $dir, $deleteParent = false)
+    private
+    function recursiveDelete(string $dir, $deleteParent = false)
     {
         if ($this->verbose) echo "Removing all language files in: {$dir}" . $this->EOL;
         $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
@@ -356,7 +377,8 @@ class languageFileRepair
      * @param string $index
      * @return bool
      */
-    private function keepThisIndex(string $index): bool
+    private
+    function keepThisIndex(string $index): bool
     {
         $skipList = array('moduleList', 'moduleListSingular');
         if (in_array($index, $skipList)) {
@@ -369,7 +391,8 @@ class languageFileRepair
      * @param string $dir
      * @return bool|null
      */
-    private function is_dir_empty(string $dir): ?bool
+    private
+    function is_dir_empty(string $dir): ?bool
     {
         if (!is_readable($dir)) return null;
         return (count(scandir($dir)) == 2);
@@ -383,7 +406,8 @@ class languageFileRepair
      * @param array $s
      * @return array
      */
-    private function scanLanguageFile(string $stringName, array $langArray, string $languageDir, string $fileName, array $s): array
+    private
+    function scanLanguageFile(string $stringName, array $langArray, string $languageDir, string $fileName, array $s): array
     {
         $languageName = substr($fileName, 0, 5);
         foreach ($langArray as $index => $value) {
@@ -396,7 +420,7 @@ class languageFileRepair
                     $newValue = array_merge($oldValue, $value);
                     $this->newLanguageArray[$stringName][$index] = $newValue;
                 } else {
-                    $this->newLanguageArray[$stringName][$index] = addslashes($value);
+                    $this->newLanguageArray[$stringName][$index] = $value;
                 }
                 //We add this index to the dictionary so that we can make it
                 //so it only appears once in the language files
@@ -424,11 +448,16 @@ class languageFileRepair
                         $newValue = array_merge($oldValue, $value);
                         $this->newLanguageArray[$stringName][$index] = $newValue;
                     } else {
-                        $this->newLanguageArray[$stringName][$index] = addslashes($value);
+                        $this->newLanguageArray[$stringName][$index] = $value;
                     }
                 }
             }
         }
         return $s;
+    }
+
+    function replace_carriage_return($string)
+    {
+        return str_replace(array("\n\r", "\n", "\r"), '\n', $string);
     }
 }
