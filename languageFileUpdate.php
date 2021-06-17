@@ -7,6 +7,7 @@
  *              Added ability to run from a web browser
  * 1.00         Added ability to handle multiple languages
  * 1.01         Fixed bug where the reported 'Kept' string was NULL
+ * 1.02         Fixed bug where lines with returns in them were not handled
  */
 const Version = '1.02';
 const Created = 'June 3rd, 2021';
