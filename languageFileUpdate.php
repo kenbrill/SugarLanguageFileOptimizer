@@ -297,8 +297,7 @@ class languageFileRepair
      * @param string $path
      * @return string
      */
-    private
-    function findModule(string $path): string
+    private function findModule(string $path): string
     {
         $parts = explode('/', $path);
         foreach ($parts as $index => $part) {
@@ -355,8 +354,7 @@ class languageFileRepair
      * @param string $dir
      * @param false $deleteParent
      */
-    private
-    function recursiveDelete(string $dir, $deleteParent = false)
+    private function recursiveDelete(string $dir, $deleteParent = false)
     {
         if ($this->verbose) echo "Removing all language files in: {$dir}" . $this->EOL;
         $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
@@ -378,8 +376,7 @@ class languageFileRepair
      * @param string $index
      * @return bool
      */
-    private
-    function keepThisIndex(string $index): bool
+    private function keepThisIndex(string $index): bool
     {
         $skipList = array('moduleList', 'moduleListSingular');
         if (in_array($index, $skipList)) {
@@ -392,8 +389,7 @@ class languageFileRepair
      * @param string $dir
      * @return bool|null
      */
-    private
-    function is_dir_empty(string $dir): ?bool
+    private function is_dir_empty(string $dir): ?bool
     {
         if (!is_readable($dir)) return null;
         return (count(scandir($dir)) == 2);
@@ -407,8 +403,7 @@ class languageFileRepair
      * @param array $s
      * @return array
      */
-    private
-    function scanLanguageFile(string $stringName, array $langArray, string $languageDir, string $fileName, array $s): array
+    private function scanLanguageFile(string $stringName, array $langArray, string $languageDir, string $fileName, array $s): array
     {
         $languageName = substr($fileName, 0, 5);
         foreach ($langArray as $index => $value) {
